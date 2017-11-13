@@ -2,6 +2,16 @@ import sys
 import xml.etree.ElementTree as ET
 from netapp_lib.api.zapi.zapi import NaElement
 from netapp_lib.api.zapi.zapi import NaServer
+import ssl
+
+try:
+  _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+  # Legacy Python that doesn't verify HTTPS certificates by default
+  pass
+else:
+  # Handle target environment that doesn't support HTTPS verification
+  ssl._create_default_https_context = _create_unverified_https_context
 
 s = NaServer("192.168.1.31")
 s.set_server_type("FILER")
@@ -16,27 +26,19 @@ api = NaElement("volume-get-iter")
 
 
 xo = s.invoke_elem(api)
-print xo
-#if (xo.results_status() == "failed") :
-#  print ("Error:\n")
-#  print (xo.sprintf())
-#  sys.exit (1)
 
-#print ("Received:\n")
-#print (xo.get_content().sprintf())
 ns = {'netapp': 'http://www.netapp.com/filer/admin'}
 root = ET.fromstring(xo.to_string())
 
-#print xo.to_string()
-#print root.tag
-
-for attrlist in root.findall('netapp:attributes-list', ns):
-#  print attrlist.tag
-#  print ("helloo?\n")
-  for volattr in attrlist.findall('netapp:volume-attributes', ns):
-    for volidattr in volattr.findall('netapp:volume-id-attributes', ns):
-      volname = volidattr.find('netapp:name', ns)
-      print volname.text
-      for nodes in volidattr.findall('netapp:nodes', ns):
-        nodename = nodes.find('netapp:node-name', ns)
-        print nodename.text
+if root.get('status') == "passed":
+  for attrlist in root.findall('netapp:attributes-list', ns):
+    for volattr in attrlist.findall('netapp:volume-attributes', ns):
+      for volidattr in volattr.findall('netapp:volume-id-attributes', ns):
+        volname = volidattr.find('netapp:name', ns)
+        print volname.text
+        for nodes in volidattr.findall('netapp:nodes', ns):
+          nodename = nodes.find('netapp:node-name', ns)
+          print nodename.text
+else:
+ print "Error: " + root.get('reason')
+ sys.exit (1)
