@@ -22,23 +22,22 @@ s.set_style("basic_auth")
 s.set_username("ansible")
 s.set_password("4N51bl3!")
 
-api = NaElement("volume-get-iter")
+vols = []
+tag = None
+while True:
+  print "Must be true"
+  vol_info = NaElement('volume-get-iter')
+  if tag:
+    vol_info.add_new_child('tag', tag, True)
+  
+  result = s.invoke_successfully(vol_info, True)
+  if result.get_child_by_name('num-records') and int(result.get_child_content('num-records')) >= 1:
+    attr_list = result.get_child_by_name('attributes-list')
+    vols.extend(attr_list.get_children())
+  tag = result.get_child_content('next-tag')
+  
+  if tag is None:
+    break
 
-
-xo = s.invoke_elem(api)
-
-ns = {'netapp': 'http://www.netapp.com/filer/admin'}
-root = ET.fromstring(xo.to_string())
-
-if root.get('status') == "passed":
-  for attrlist in root.findall('netapp:attributes-list', ns):
-    for volattr in attrlist.findall('netapp:volume-attributes', ns):
-      for volidattr in volattr.findall('netapp:volume-id-attributes', ns):
-        volname = volidattr.find('netapp:name', ns)
-        print volname.text
-        for nodes in volidattr.findall('netapp:nodes', ns):
-          nodename = nodes.find('netapp:node-name', ns)
-          print nodename.text
-else:
- print "Error: " + root.get('reason')
- sys.exit (1)
+for vol in vols:
+  print vol.get_child_by_name('volume-id-attributes').get_child_by_name('name').to_string()
